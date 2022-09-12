@@ -15,6 +15,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const User = require("./models/userSchema");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 //This middleware allows us to connect the cross origin because the port is defferent in two server. Client side and server side.
 app.use(cors());
@@ -36,10 +37,11 @@ app.get("/hello", (req, res) => {
 app.post("/api/register", async (req, res) => {
   console.log(req.body);
   try {
+    const newPassword = await bcrypt.hash(req.body.password, 10);
     const user = await User.create({
       name: req.body.name,
       email: req.body.email,
-      password: req.body.password,
+      password: newPassword,
     });
     res.status(200).json(user);
   } catch (e) {
@@ -50,7 +52,6 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   const result = await User.findOne({
     email: req.body.email,
-    password: req.body.password,
   });
   if (result) {
     const token = jwt.sign(
@@ -66,29 +67,33 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-app.get("/api/qoute", async (req, res) => {
-  const token = req.header("x-access-token");
+app.get("/api/quote", async (req, res) => {
+  const token = req.headers["x-access-token"];
+
   try {
     const decoded = jwt.verify(token, "secret123");
     const email = decoded.email;
     const user = await User.findOne({ email: email });
-    return res.json({ status: 200, qoute: user.qoute });
+
+    return res.json({ status: "ok", quote: user.quote });
   } catch (error) {
     console.log(error);
-    res.status(400).json({ error: "Invalid token" });
+    res.json({ status: "error", error: "invalid token" });
   }
 });
 
-app.post("/api/qoute", async (req, res) => {
-  const token = req.header("x-access-token");
+app.post("/api/quote", async (req, res) => {
+  const token = req.headers["x-access-token"];
+
   try {
     const decoded = jwt.verify(token, "secret123");
     const email = decoded.email;
-    await User.updateOne({ email: email }, { $set: { qoute: req.body.qoute } });
-    return { status: 200 };
+    await User.updateOne({ email: email }, { $set: { quote: req.body.quote } });
+
+    return res.json({ status: "ok" });
   } catch (error) {
     console.log(error);
-    res.status(400).json({ error: "Invalid token" });
+    res.json({ status: "error", error: "invalid token" });
   }
 });
 
